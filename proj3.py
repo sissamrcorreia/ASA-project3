@@ -87,9 +87,12 @@ def maximizar_lucro_brinquedos_individuais(n_brinquedos, max_producao, dados_bri
     return int(value(prob.objective))
 
 # Recebe o input
-n_brinquedos, n_pacotes, max_producao = map(int, input().split())
-dados_brinquedos = [list(map(int, input().split())) for _ in range(n_brinquedos)]
-dados_pacotes = [list(map(int, input().split())) for _ in range(n_pacotes)]
+n_brinquedos, n_pacotes, max_producao = input().split()
+n_brinquedos = int(n_brinquedos)
+n_pacotes = int(n_pacotes)
+max_producao = int(max_producao)
+dados_brinquedos = [list(int(x) for x in input().split()) for _ in range(n_brinquedos)]
+dados_pacotes = [list(int(x) for x in input().split()) for _ in range(n_pacotes)]
 
 copia_brinquedos = dados_brinquedos.copy()
 
