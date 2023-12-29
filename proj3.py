@@ -7,6 +7,9 @@
 # Importar PuLP modeller functions
 from pulp import *
 
+# Desativar mensagens de impressão do PuLP
+LpSolverDefault.msg = 0
+
 def maximizar_lucro_brinquedos_simples(n_brinquedos, max_producao, dados_brinquedos):
     # Criação do problema de maximização para brinquedos individuais
     prob_brinquedos = LpProblem("MaximizarLucroBrinquedosSimples", LpMaximize)
