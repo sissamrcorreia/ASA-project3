@@ -23,7 +23,7 @@ for i in range(t):
     
     prob += sp <= v, "SumBond" + str(i)
     
-    goal += (v - sp) 
+    goal += (v - sp) * l
 
 
 for j in range(p):
