@@ -17,33 +17,37 @@ for i in range(t):
     l = int(l) # lucro
     c = int(c) # capacidade de produção
 
-    v = LpVariable("v_" + str(i), 0, c, LpInteger) 
-    sp = LpVariable("cp_" + str(i), 0, c, LpInteger) 
+    v = LpVariable("v_" + str(i), 0, c, LpInteger) # variável de decisão para a quantidade de brinquedo i a serem produzidos
+    sp = LpVariable("cp_" + str(i), 0, c, LpInteger) # quantidade de brinquedo i a serem produzidos para pacotes especiais
     toys.append({'l' : l, 'c' : c, 'v' : v, 'sp' : sp, 'p': 0})
     
+    # restrição para garantir que a quantidade de brinquedos produzida para pacotes especiais (sp) 
+    # não exceda a quantidade total produzida (v)
     prob += sp <= v, "SumBond" + str(i)
     
+    # lucro de cada brinquedo para o objetivo total, tendo em consideração a produção para pacotes especiais (sp)
     goal += (v - sp) * l
 
 
-for j in range(p):
+for pack in range(p):
     i, j, k, l = input().split()
     i = int(i) # brinquedo 1
     j = int(j) # brinquedo 2
     k = int(k) # brinquedo 3
     l = int(l) # lucro do pacote especial
     
-    #pack_vars = toys[i - 1]['v'] + toys[j - 1]['v'] + toys[k - 1]['v']
-    #pack_sp = toys[i - 1]['sp'] + toys[j - 1]['sp'] + toys[k - 1]['sp']
-    #pack_profit = (toys[i - 1]['l'] + toys[j - 1]['l'] + toys[k - 1]['l']) * l
-    #prob += pack_sp <= pack_vars, f"PackSum{j + 1}"
+    # quantidade total de pacotes especiais produzidos
+    pack_vars = LpVariable(f"pack_{pack}", 0, None, LpInteger) 
     
-    #goal += pack_profit
+    # Restrição para garantir que a quantidade total produzida para pacotes especiais não exceda a capacidade
+    prob += pack_vars * (toys[i]['c'] + toys[j]['c'] + toys[k]['c']) <= max_prod, f"PackCapacity{pack}"
     
+    # Contribuição do lucro de cada pacote especial ao objetivo total
+    goal += pack_vars * l
+
+# maximizar o lucro total
 prob += goal
 
-#prob += lpSum([toy['v'] for toy in toys]) <= max_prod, "ProductionCapacity"
-
 prob.solve()
-
+    
 print(int(prob.objective.value()))
