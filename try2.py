@@ -11,14 +11,13 @@ prob = LpProblem("MaximizeProfit", LpMaximize)
 goal = 0
 toys = [0]
 
-
 for i in range(t):
     l, c = input().split()
     l = int(l) # lucro
     c = int(c) # capacidade de produção
 
     v = LpVariable("v_" + str(i), 0, c, LpInteger) # variável de decisão para a quantidade de brinquedo i a serem produzidos
-    sp = LpVariable("cp_" + str(i), 0, c, LpInteger) # quantidade de brinquedo i a serem produzidos para pacotes especiais
+    sp = LpVariable("sp_" + str(i), 0, c, LpInteger) # quantidade de brinquedo i a serem produzidos para pacotes especiais
     toys.append({'l' : l, 'c' : c, 'v' : v, 'sp' : sp, 'p': 0})
     
     # restrição para garantir que a quantidade de brinquedos produzida para pacotes especiais (sp) 
@@ -27,6 +26,8 @@ for i in range(t):
     
     # lucro de cada brinquedo para o objetivo total, tendo em consideração a produção para pacotes especiais (sp)
     goal += (v - sp) * l
+    
+    # restrição todos os brinquedos produzidos tem de ser menor que o max_prod
 
 
 for pack in range(p):
@@ -39,9 +40,14 @@ for pack in range(p):
     # quantidade total de pacotes especiais produzidos
     pack_vars = LpVariable(f"pack_{pack}", 0, None, LpInteger) 
     
-    # Restrição para garantir que a quantidade total produzida para pacotes especiais não exceda a capacidade
+    # Restrição para garantir que a quantidade total produzida para pacotes especiais não exceda a capacidade fixme
     prob += pack_vars * (toys[i]['c'] + toys[j]['c'] + toys[k]['c']) <= max_prod, f"PackCapacity{pack}"
     
+    # Restrição para garantir que a quantidade de brinquedos produzida para pacotes especiais (sp) não exceda a quantidade total produzida (v)
+    prob += pack_vars <= toys[i]['sp'], f"PackBond{i}_toy_{pack}"
+    prob += pack_vars <= toys[j]['sp'], f"PackBond{j}_toy_{pack}"
+    prob += pack_vars <= toys[k]['sp'], f"PackBond{k}_toy_{pack}"
+        
     # Contribuição do lucro de cada pacote especial ao objetivo total
     goal += pack_vars * l
 
@@ -49,5 +55,8 @@ for pack in range(p):
 prob += goal
 
 prob.solve()
-    
+# Imprimir quantidades ótimas de cada brinquedo
+for var in prob.variables():
+    print(f"{var.name}: {var.value()}")
+
 print(int(prob.objective.value()))
