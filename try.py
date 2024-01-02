@@ -1,75 +1,53 @@
-from pulp import LpProblem, LpVariable, lpSum, LpMaximize
+import cProfile
+# Importar PuLP modeller functions
+from pulp import *
+# Desativar mensagens de impressão do PuLP
+LpSolverDefault.msg = 0
 
-# Criar um problema de maximização
-prob = LpProblem("MaximizeProfit", LpMaximize)
+def calcular_lucro_maximo(n_brinquedos, n_pacotes, max_producao, dados_brinquedos, producao_pacotes):
+    # Criação do problema de maximização
+    prob = LpProblem("MaximizarLucroBrinquedosIndividuais", LpMaximize)
 
-# Definir as variáveis
-x1 = LpVariable("x1", lowBound=0, cat="Integer")
-x2 = LpVariable("x2", lowBound=0, cat="Integer")
-x3 = LpVariable("x3", lowBound=0, cat="Integer")
-x4 = LpVariable("x4", lowBound=0, cat="Integer")
-x5 = LpVariable("x5", lowBound=0, cat="Integer")
-x6 = LpVariable("x6", lowBound=0, cat="Integer")
-x7 = LpVariable("x7", lowBound=0, cat="Integer")
-x8 = LpVariable("x8", lowBound=0, cat="Integer")
-# Variável adicional para indicar presença simultânea dos tipos 3, 4 e 6
-pack1 = LpVariable("pack1", lowBound=0, cat="Continuous")
-pack2 = LpVariable("pack2", lowBound=0, cat="Continuous")
-pack3 = LpVariable("pack3", lowBound=0, cat="Continuous")
-pack4 = LpVariable("pack4", lowBound=0, cat="Continuous")
-pack5 = LpVariable("pack5", lowBound=0, cat="Continuous")
+    # Criação das variáveis de decisão
+    xbrinquedos = LpVariable.dicts("Brinquedo", range(1, n_brinquedos + 1), lowBound=0, upBound=max_producao, cat=LpInteger)
+    pacotes = LpVariable.dicts("Pacote", range(1, n_pacotes + 1), lowBound=0, upBound=max_producao//3, cat=LpContinuous)
 
-# Adicionar a função objetivo
-prob += 5 * x1 + 24 * x2 + 32 * x3 + 37 * x4 + 8 * x5 + 15 * x6 + 3 * x7 + 34 * x8 + 39*pack1+ 48*pack2+25*pack3+65*pack4+37*pack5, "TotalGastos"
+    # Função objetivo para brinquedos 
+    parte1 = sum(dados_brinquedos[i-1][0] * xbrinquedos[i] for i in range(1, n_brinquedos + 1))
 
-# Adicionar as restrições
-prob += x1 <= 20, "RestricaoTipo1"
-prob += pack2 + pack3 <= 20, "RestricaoBrinquedo1Pack"
-prob += x2 <= 14, "RestricaoTipo2"
-prob += pack2 + pack4 + pack5 <= 14, "RestricaoBrinquedo2Pack"
-prob += x3 <= 5, "RestricaoTipo3"
-prob += pack1 + pack3 + pack4 + pack5<= 5, "RestricaoBrinquedo3Pack"
-prob += x4 <= 12, "RestricaoTipo4"
-prob += x5 <= 17, "RestricaoTipo5"
-prob += pack2 + pack5 <= 17, "RestricaoBrinquedo5Pack"
-prob += x6 <= 1, "RestricaoTipo6"
-# Restrição para garantir que o brinquedo 6 só seja usado em um pack
-prob += pack1 + pack3 <= 1, "RestricaoBrinquedo6Pack"
-prob += x7 <= 1, "RestricaoTipo7"
-prob += pack1 + pack4 <= 1, "RestricaoBrinquedo7Pack"
-prob += x8 <= 6, "RestricaoTipo8"
+    # Função objetivo para pacotes
+    parte2 = sum((producao_pacotes[j-1][3] - sum(dados_brinquedos[i-1][0] for i in producao_pacotes[j-1][:-1])) * pacotes[j] for j in range(1, n_pacotes + 1))
 
-prob+=x3>=pack1;
-prob+=x7>=pack1;
-prob+=x6>=pack1;
+    # Adiciona diretamente à função objetivo a diferença entre o preço do pacote e o preço dos brinquedos que o compõem
+    prob += parte1 + parte2 
 
-prob+=x1>=pack2;
-prob+=x2>=pack2;
-prob+=x5>=pack2;
+    # Restrição de produção total
+    prob += sum(xbrinquedos[i] for i in range(1, n_brinquedos + 1)) <= max_producao
 
-prob+=x1>=pack3;
-prob+=x3>=pack3;
-prob+=x6>=pack3;
+    # Restrições de pacotes
+    for j in range(1, n_pacotes + 1):
+        # Restrição de quantidade de pacotes disponíveis
+        for i in producao_pacotes[j-1][:-1]:
+            prob += pacotes[j] <= xbrinquedos[i]
+            prob += xbrinquedos[i] >= pacotes[j]
 
-prob+=x2>=pack4;
-prob+=x3>=pack4;
-prob+=x7>=pack4;
+    # Restrições para brinquedos individuais e em pacotes
+    for i in range(1, n_brinquedos + 1):
+        prob += xbrinquedos[i] <= dados_brinquedos[i-1][1]
+        prob += sum(pacotes[j] for j in range(1, n_pacotes + 1) if i in producao_pacotes[j-1][:-1]) <= dados_brinquedos[i-1][1]
 
-prob+=x5>=pack5;
-prob+=x2>=pack5;
-prob+=x3>=pack5;
+    # Resolve o problema
+    prob.solve(PULP_CBC_CMD(msg=False, timeLimit=200))
 
-# Restrição de produção total
-prob += x1+x2+x3+x4+x5+x6+x7+x8 <= 70
+    
+    # Retorna o resultado
+    return int(value(prob.objective))
 
-# Resolver o problema
-prob.solve()
+# Recebe o input
+n, p, maxp = map(int, input().split())
+lista_brinquedos = [list(map(int, input().split())) for _ in range(n)]
+lista_pacotes = [list(map(int, input().split())) for _ in range(p)]
 
-# Imprimir resultados
-print("Status:", prob.status)
-print("Total gasto: €", round(prob.objective.value(), 2))
-
-# Imprimir quantidades ótimas de cada brinquedo
-for var in prob.variables():
-    print(f"{var.name}: {var.value()}")
-
+# Calcular e imprimir o lucro máximo
+resultado = calcular_lucro_maximo(n, p, maxp, lista_brinquedos, lista_pacotes)
+print(resultado)
