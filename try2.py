@@ -11,7 +11,7 @@ prob = LpProblem("MaximizeProfit", LpMaximize)
 goal = 0
 toys = [0]
 
-for i in range(t):
+for i in range(1, t + 1):
     l, c = input().split()
     l = int(l) # lucro
     c = int(c) # capacidade de produção
@@ -27,10 +27,9 @@ for i in range(t):
     # lucro de cada brinquedo para o objetivo total, tendo em consideração a produção para pacotes especiais (sp)
     goal += (v - sp) * l
     
-    # restrição todos os brinquedos produzidos tem de ser menor que o max_prod
+    # restrição todos os brinquedos produzidos tem de ser menor que o max_prod FIXME
 
-
-for pack in range(p):
+for pack in range(1, p + 1):
     i, j, k, l = input().split()
     i = int(i) # brinquedo 1
     j = int(j) # brinquedo 2
@@ -40,7 +39,7 @@ for pack in range(p):
     # quantidade total de pacotes especiais produzidos
     pack_vars = LpVariable(f"pack_{pack}", 0, None, LpInteger) 
     
-    # Restrição para garantir que a quantidade total produzida para pacotes especiais não exceda a capacidade fixme
+    # Restrição para garantir que a quantidade total produzida para pacotes especiais não exceda a capacidade FIXME
     prob += pack_vars * (toys[i]['c'] + toys[j]['c'] + toys[k]['c']) <= max_prod, f"PackCapacity{pack}"
     
     # Restrição para garantir que a quantidade de brinquedos produzida para pacotes especiais (sp) não exceda a quantidade total produzida (v)
@@ -55,8 +54,5 @@ for pack in range(p):
 prob += goal
 
 prob.solve()
-# Imprimir quantidades ótimas de cada brinquedo
-for var in prob.variables():
-    print(f"{var.name}: {var.value()}")
 
 print(int(prob.objective.value()))
