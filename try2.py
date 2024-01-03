@@ -53,6 +53,6 @@ for pack in range(1, p + 1):
 # maximizar o lucro total
 prob += goal
 
-prob.solve()
+prob.solve(GLPK(msg=0))
 
-print(int(prob.objective.value()))
+print(int(pulp.value(prob.objective)))
