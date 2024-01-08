@@ -1,43 +1,40 @@
 from pulp import *
 
 # Leitura dos dados de entrada
-nb, np, max_value = map(int, input().split())
-toys = {}
-packs = {}
-prob = LpProblem("m", LpMaximize)
+nb, np, m = map(int, input().split())
+toys = []
+packs = []
+prob = LpProblem("Ma", LpMaximize)
 
-# Create toys dictionary
-for i in range(1, nb + 1):
+for i in range (1, nb+1):
     l, c = map(int, input().split())
-    x = LpVariable("xb" + str(i), 0, c, LpInteger)
-    toys[i] = {'l': l, 'c': c, 'x': x}
+    x = LpVariable("xb"+str(i), 0, c, LpInteger)
+    toys.append([l,c,x])
 
-# Create packs dictionary
-for j in range(1, np + 1):
+for j in range (1, np+1):
     t1, t2, t3, l = map(int, input().split())
-    r = toys[t1]['l'] + toys[t2]['l'] + toys[t3]['l']
-    p = LpVariable("pac" + str(j), 0, max_value // 3, cat=LpContinuous)
-    packs[j] = {'t1': t1, 't2': t2, 't3': t3, 'l': l, 'p': p, 'r': r}
+    r = toys[t1-1][0]+toys[t2-1][0]+toys[t3-1][0]
+    p = LpVariable("pac" + str(j), 0, m // 3, LpInteger)
+    packs.append([t1, t2, t3, l, p, r])
+    toy_indices = [packs[j - 1][0] - 1, packs[j - 1][1] - 1, packs[j - 1][2] - 1]
+    prob += packs[j - 1][4] <= lpSum(toys[i][2] for i in toy_indices)
 
 # Combine objective function parts
-prob += lpSum(toys[i]['l'] * toys[i]['x'] for i in range(1, nb + 1)) + \
-        lpSum((packs[j]['l'] - packs[j]['r']) * packs[j]['p'] for j in range(1, np + 1))
+prob += lpSum(toys[i - 1][0] * toys[i-1][2] for i in range(1, nb + 1)) + \
+        lpSum((packs[j - 1][3] - packs[j-1][5]) * packs[j-1][4] for j in range(1, np + 1))
 
 # Total production constraint
-prob += lpSum(toys[i]['x'] for i in range(1, nb + 1)) <= max_value
+prob += lpSum(toy[2] for toy in toys) <= m
 
-# Constraints for individual toys and in packages
+# Constraints for individual toys in packages
 for i in range(1, nb + 1):
-    prob += lpSum(packs[j]['p'] for j in range(1, np + 1) if i in (packs[j]['t1'], packs[j]['t2'], packs[j]['t3'])) <= toys[i]['x']
+    prob += lpSum(pack[4] for pack in packs if i in pack[:-3]) <= toys[i - 1][2]
 
-# Package constraints
-for j in range(1, np + 1):
-    prob += packs[j]['p'] <= toys[packs[j]['t1']]['x']
-    prob += packs[j]['p'] <= toys[packs[j]['t2']]['x']
-    prob += packs[j]['p'] <= toys[packs[j]['t3']]['x']
-
-# prob.writeLP("teste.lp")
 # Solve the problem
 prob.solve(GLPK(msg=0))
 
 print(int(value(prob.objective)))
+
+# Imprimir informações finais
+#for var in prob.variables():
+#    print(f"{var.name} = {var.varValue}")
