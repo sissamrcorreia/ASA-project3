@@ -1,114 +1,51 @@
-# Projeto 2 - Análise de Sistemas de Algoritmos - 2023
-
-# Grupo: AL002
-# Cecília Correia - 106827
-# Luísa Fernandes - 102460
-
-# Importar PuLP modeller functions
+# Importar pulp
 from pulp import *
 
-# Desativar mensagens de impressão do PuLP
-LpSolverDefault.msg = 0
+# Leitura dos dados de entrada
+nb, np, m = map(int, input().split())
+toys = []
+packs = []
 
-def maximizar_lucro_brinquedos_simples(n_brinquedos, max_producao, dados_brinquedos):
-    # Criação do problema de maximização para brinquedos individuais
-    prob_brinquedos = LpProblem("MaximizarLucroBrinquedosSimples", LpMaximize)
+# Criar o problema
+prob = LpProblem("Ma", LpMaximize)
 
-    # Criação das variáveis de decisão para brinquedos individuais
-    brinquedos = LpVariable.dicts("Brinquedo", range(1, n_brinquedos + 1), lowBound=0, upBound=max_producao, cat=LpInteger)
+# Criar LpVariable para os brinquedos
+for i in range (1, nb + 1):
+    l, c = map(int, input().split())
+    x = LpVariable("xb" + str(i), 0, c, LpInteger)
+    toys.append([l, c, x])
 
-    # Função objetivo apenas para brinquedos individuais
-    prob_brinquedos += sum(dados_brinquedos[i-1][0] * brinquedos[i] for i in range(1, n_brinquedos + 1)) 
+# Cirar LpVariable para os pacotes
+for j in range (1, np + 1):
+    t1, t2, t3, l = map(int, input().split())
+    r = toys[t1 - 1][0] + toys[t2 - 1][0] + toys[t3 - 1][0]
+    p = LpVariable("pac" + str(j), 0, m // 3, LpInteger)
+    packs.append([t1, t2, t3, l, p,r])
+    cur = packs[j -1]
+    toy_indices = [cur[0] - 1, cur[1] - 1, cur[2] - 1]
+    prob += cur[4] <= lpSum(toys[i][2] for i in toy_indices)
 
-    # Restrições de produção para cada brinquedo
-    for i in range(1, n_brinquedos + 1):
-        prob_brinquedos += brinquedos[i] <= dados_brinquedos[i-1][1]
+# Função objetivo
+prob += lpSum(toys[i - 1][0] * toys[i - 1][2] for i in range(1, nb + 1)) + \
+        lpSum((packs[j - 1][3] - packs[j - 1][5]) * packs[j - 1][4] for j in range(1, np + 1))
 
-    # Restrição de produção total
-    prob_brinquedos += sum(brinquedos[i] for i in range(1, n_brinquedos + 1)) <= max_producao
+# Restrição do máximo de produção diária
+prob += lpSum(toy[2] for toy in toys) <= m
 
-    # Resolve o problema para brinquedos individuais
-    prob_brinquedos.solve()
+# Criar um dicionário que mapeia índices de brinquedos para os pacotes associados
+toy_to_packs = {}
+for j, pack in enumerate(packs):
+    for toy_index in pack[: -3]:
+        if toy_index not in toy_to_packs:
+            toy_to_packs[toy_index] = []
+        toy_to_packs[toy_index].append(j)
 
-    # Calcula o lucro máximo possível sem usar pacotes
-    lucro_max_brinquedos = int(value(prob_brinquedos.objective))
+# Usar o dicionário para criar as restrições
+for i in range(1, nb + 1):
+    if i in toy_to_packs:
+        prob += lpSum(packs[j][4] for j in toy_to_packs[i]) <= toys[i - 1][2]
 
-    return lucro_max_brinquedos 
+# Resolver o problema
+prob.solve(GLPK(msg=0))
 
-def maximizar_lucro_pacotes(n_brinquedos, n_pacotes, max_producao, dados_brinquedos, dados_pacotes):
-    # Criação do problema de maximização
-    prob = LpProblem("MaximizarLucroPacotes", LpMaximize)
-
-    # Criação das variáveis de decisão
-    brinquedos = LpVariable.dicts("Brinquedo", range(1, n_brinquedos + 1), lowBound=0, upBound=max_producao, cat=LpInteger)
-    pacotes = LpVariable.dicts("Pacote", range(1, n_pacotes + 1), lowBound=0, upBound=max_producao//3, cat=LpInteger)
-
-    # Função objetivo apenas para pacotes
-    prob += sum(dados_pacotes[j-1][3] * pacotes[j] for j in range(1, n_pacotes + 1))
-
-    # Restrições de produção para cada brinquedo
-    for i in range(1, n_brinquedos + 1):
-        prob += brinquedos[i] <= dados_brinquedos[i-1][1]
-
-    # Restrição de produção total
-    prob += sum(brinquedos[i] for i in range(1, n_brinquedos + 1)) + 3 * lpSum(pacotes[j] for j in range(1, n_pacotes + 1)) <= max_producao
-
-    # Restrições de quantidade máxima por tipo de brinquedo
-    for i in range(1, n_brinquedos + 1):
-        prob += sum(pacotes[j] for j in range(1, n_pacotes + 1) if i in dados_pacotes[j-1][0:3]) <= dados_brinquedos[i-1][1]
-
-    # Resolve o problema
-    prob.solve()
-
-    # Retornando a produção de pacotes e brinquedos individuais
-    producao_pacotes = {i: int(value(pacotes[i])) for i in range(1, n_pacotes + 1)}
-    producao_brinquedos = {i: int(value(brinquedos[i])) for i in range(1, n_brinquedos + 1)}
-
-    return producao_pacotes, producao_brinquedos
-
-def maximizar_lucro_brinquedos_individuais(n_brinquedos, max_producao, dados_brinquedos, producao_pacotes):
-    # Criação do problema de maximização
-    prob = LpProblem("MaximizarLucroBrinquedosIndividuais", LpMaximize)
-
-    # Criação das variáveis de decisão
-    brinquedos = LpVariable.dicts("Brinquedo", range(1, n_brinquedos + 1), lowBound=0, upBound=max_producao, cat=LpInteger)
-
-    # Função objetivo apenas para brinquedos individuais
-    prob += sum(dados_brinquedos[i-1][0] * brinquedos[i] for i in range(1, n_brinquedos + 1))
-
-    # Restrições de produção para cada brinquedo
-    for i in range(1, n_brinquedos + 1):
-        prob += brinquedos[i] <= dados_brinquedos[i-1][1] - sum(producao_pacotes[j] for j in range(1, n_pacotes + 1) if i in dados_pacotes[j-1][0:3])
-
-    # Restrição de produção total
-    prob += sum(brinquedos[i] for i in range(1, n_brinquedos + 1)) <= max_producao - 3 * lpSum(producao_pacotes[j] for j in range(1, n_pacotes + 1))
-
-    # Resolve o problema
-    prob.solve()
-
-    # Retorna o resultado
-    return int(value(prob.objective))
-
-# Recebe o input
-n_brinquedos, n_pacotes, max_producao = input().split()
-n_brinquedos = int(n_brinquedos)
-n_pacotes = int(n_pacotes)
-max_producao = int(max_producao)
-dados_brinquedos = [list(int(x) for x in input().split()) for _ in range(n_brinquedos)]
-dados_pacotes = [list(int(x) for x in input().split()) for _ in range(n_pacotes)]
-
-copia_brinquedos = dados_brinquedos.copy()
-
-# Calcula lucro maximo de pacotes e de seguida dos brinquedos individuais que sobraram
-producao_pacotes, _ = maximizar_lucro_pacotes(n_brinquedos, n_pacotes, max_producao, dados_brinquedos, dados_pacotes)
-lucro_brinquedos_individuais = maximizar_lucro_brinquedos_individuais(n_brinquedos, max_producao, dados_brinquedos, producao_pacotes)
-
-# Calcula o lucro total
-resultado_total = sum(producao_pacotes[j] * dados_pacotes[j-1][3] for j in range(1, n_pacotes + 1)) + lucro_brinquedos_individuais
-#print(resultado_total)
-
-# Calcula o lucro maximo de brinquedos individuais sem pacotes
-lucro_alternativo = maximizar_lucro_brinquedos_simples(n_brinquedos, max_producao, copia_brinquedos)
-#print(lucro_alternativo)
-
-print(max(resultado_total, lucro_alternativo))
+print(int(value(prob.objective)))
